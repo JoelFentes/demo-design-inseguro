@@ -4,44 +4,39 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#101416">
-  <title>Admin · Design Inseguro</title>
+  <title>Admin · Loja Byte</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="aviso">Ambiente de demonstração acadêmica - loja fictícia</div>
+  <div class="aviso">
+    <div class="wrap"><span>Ambiente de demonstração acadêmica - loja fictícia</span></div>
+  </div>
 
-  <main class="wrap">
-    <header class="topo">
-      <div>
-        <span class="rotulo">Demo A / Controle</span>
-        <h1>Admin</h1>
-      </div>
-      <span id="selo" class="selo">Carregando…</span>
-    </header>
+  <main class="wrap admin">
+    <h1>Admin da loja</h1>
+    <p class="sub">Controle da demonstração. Exige o token de admin.</p>
 
-    <div class="admin-grid">
-      <form id="form-token" class="card" autocomplete="off">
-        <div class="campo">
-          <label for="token">Token de admin</label>
-          <div class="linha">
-            <input type="password" id="token" name="token" autocomplete="current-password">
-            <button type="submit" class="botao fantasma">Salvar</button>
-          </div>
+    <form id="form-token" class="bloco" autocomplete="off">
+      <div class="campo">
+        <label for="token">Token de admin</label>
+        <div class="linha">
+          <input type="password" id="token" name="token" autocomplete="current-password">
+          <button type="submit" class="botao secundario">Salvar</button>
         </div>
-      </form>
+      </div>
+    </form>
 
-      <section class="card">
-        <button id="alternar" type="button" class="botao grande">Aplicar a correção (modo seguro)</button>
-        <button id="limpar" type="button" class="botao fantasma">Limpar pedidos</button>
-        <p id="status-acao" class="status-acao" role="status" aria-live="polite"></p>
-      </section>
-    </div>
+    <section class="bloco">
+      <div class="modo-atual">
+        <span>Modo atual</span>
+        <span id="selo" class="selo">...</span>
+      </div>
+      <button id="alternar" type="button" class="botao">Aplicar a correção (modo seguro)</button>
+      <button id="limpar" type="button" class="botao secundario">Limpar pedidos</button>
+      <p id="status-acao" class="status-acao" role="status" aria-live="polite"></p>
+    </section>
 
-    <footer class="rodape">
-      <a href="/">Loja</a>
-      <a href="/painel.html">Painel</a>
-    </footer>
+    <p style="font-size: 15px;"><a href="/">Loja</a> · <a href="/painel.html">Pedidos ao vivo</a></p>
   </main>
 
   <script src="/app.js"></script>
@@ -54,7 +49,7 @@
     let modoAtual = 'vulneravel';
 
     function token() {
-      try { return sessionStorage.getItem('admin_token') || ''; } catch (_) { return campoToken.value; }
+      try { return sessionStorage.getItem('admin_token') || campoToken.value; } catch (_) { return campoToken.value; }
     }
 
     function aviso(texto, tipo) {
@@ -67,10 +62,10 @@
       pintarSelo(selo, modo);
       if (modo === 'seguro') {
         alternar.textContent = 'Voltar ao modo vulnerável';
-        alternar.classList.add('ataque');
+        alternar.classList.add('perigo');
       } else {
         alternar.textContent = 'Aplicar a correção (modo seguro)';
-        alternar.classList.remove('ataque');
+        alternar.classList.remove('perigo');
       }
     }
 
@@ -80,7 +75,7 @@
       return (r.corpo && r.corpo.erro) || ('Erro ' + r.status);
     }
 
-    async function admin(caminho, corpo) {
+    function admin(caminho, corpo) {
       return api(caminho, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token() },
@@ -122,7 +117,7 @@
       }
     });
 
-    campoToken.value = token();
+    try { campoToken.value = sessionStorage.getItem('admin_token') || ''; } catch (_) {}
     api('/api/status').then(r => { if (r.ok) pintar(r.corpo.modo); }).catch(() => {});
   </script>
 </body>

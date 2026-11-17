@@ -4,26 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#101416">
-  <title>Painel de pedidos · Design Inseguro</title>
+  <title>Pedidos ao vivo · Loja Byte</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body class="painel">
-  <div class="aviso">Ambiente de demonstração acadêmica - loja fictícia</div>
+  <div class="aviso">
+    <div class="wrap" style="max-width: 1400px;">
+      <span>Ambiente de demonstração acadêmica - loja fictícia</span>
+    </div>
+  </div>
 
   <main class="wrap" style="max-width: 1400px;">
-    <header class="topo">
-      <div>
-        <span class="rotulo">Demo A / Design inseguro</span>
-        <h1>Pedidos ao vivo</h1>
-      </div>
-      <span id="selo" class="selo" style="font-size: 16px; padding: 10px 18px;">Carregando…</span>
-    </header>
+    <div class="painel-topo">
+      <h1>Loja<span style="color: var(--brand)">Byte</span> · pedidos ao vivo</h1>
+      <span id="selo" class="selo">...</span>
+    </div>
 
     <section class="contadores" aria-label="Resumo">
-      <div class="contador"><span class="rotulo">Total de pedidos</span><div class="valor" id="c-total">0</div></div>
-      <div class="contador fraudes"><span class="rotulo">Fraudes</span><div class="valor" id="c-fraudes">0</div></div>
-      <div class="contador prejuizo"><span class="rotulo">Prejuízo total</span><div class="valor" id="c-prejuizo">R$ 0,00</div></div>
+      <div class="contador"><div class="nome">Pedidos</div><div class="valor" id="c-total">0</div></div>
+      <div class="contador alerta"><div class="nome">Fraudes</div><div class="valor" id="c-fraudes">0</div></div>
+      <div class="contador alerta"><div class="nome">Prejuízo total</div><div class="valor" id="c-prejuizo">R$ 0,00</div></div>
     </section>
 
     <div class="tabela-wrap">
@@ -46,10 +46,9 @@
       <div id="vazio" class="vazio">Nenhum pedido ainda. Abra a loja e faça a primeira compra.</div>
     </div>
 
-    <footer class="rodape">
-      <a href="/">Abrir a loja</a>
-      <span id="atualizado" aria-live="off"></span>
-    </footer>
+    <p style="color: var(--text-2); font-size: 15px; padding-bottom: 32px; margin: 0;">
+      <a href="/">Abrir a loja</a> · <span id="atualizado"></span>
+    </p>
   </main>
 
   <script src="/app.js"></script>
@@ -64,14 +63,15 @@
     function linha(p) {
       const tr = el('tr', p.fraude ? 'fraude' : '');
       if (!primeiraCarga && !vistos.has(p.id)) tr.classList.add('novo');
+      const ignorado = p.modo === 'seguro' && p.preco_enviado !== null
+        && Math.abs(Number(p.preco_enviado) - p.preco_real) > 0.001;
       tr.append(
         el('td', 'num', p.id),
         el('td', '', p.hora),
-        el('td', 'nome', p.nome),
+        el('td', 'comprador', p.nome),
         el('td', '', p.produto),
         el('td', 'num', brl(p.preco_real)),
-        el('td', 'num enviado' + (p.modo === 'seguro' && p.fraude === false && p.preco_enviado !== null && Math.abs(Number(p.preco_enviado) - p.preco_real) > 0.001 ? ' ignorado' : ''),
-          p.preco_enviado === null ? '-' : brl(p.preco_enviado)),
+        el('td', 'num enviado' + (ignorado ? ' ignorado' : ''), p.preco_enviado === null ? '-' : brl(p.preco_enviado)),
         el('td', 'num registrado', brl(p.preco_registrado)),
         el('td', '', p.modo === 'seguro' ? 'seguro' : 'vulnerável'),
       );
@@ -100,9 +100,9 @@
         for (const p of pedidos) vistos.add(p.id);
         primeiraCarga = false;
         vazio.hidden = pedidos.length > 0;
-        atualizado.textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
+        atualizado.textContent = 'atualizado às ' + new Date().toLocaleTimeString('pt-BR');
       } catch (_) {
-        atualizado.textContent = 'Sem conexão com o servidor, tentando de novo…';
+        atualizado.textContent = 'sem conexão com o servidor, tentando de novo...';
       }
     }
 

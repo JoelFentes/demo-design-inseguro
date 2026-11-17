@@ -4,56 +4,72 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#101416">
-  <title>Loja Demo · Design Inseguro</title>
+  <title>Loja Byte</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="aviso">Ambiente de demonstração acadêmica - loja fictícia</div>
+  <div class="aviso">
+    <div class="wrap">
+      <span>Ambiente de demonstração acadêmica - loja fictícia</span>
+      <span id="selo" class="selo" aria-live="polite">...</span>
+    </div>
+  </div>
+
+  <header class="cabecalho">
+    <div class="wrap">
+      <a class="logo" href="/">Loja<span>Byte</span></a>
+      <div class="cliente">
+        <label for="nome">Seu nome</label>
+        <input type="text" id="nome" maxlength="30" autocomplete="nickname" placeholder="Como quer ser chamado?">
+      </div>
+    </div>
+  </header>
 
   <main class="wrap">
-    <header class="topo">
-      <div>
-        <span class="rotulo">Demo A / Design inseguro</span>
-        <h1>Loja Demo</h1>
-        <p class="sub">Desafio: compre qualquer produto pelo menor preço possível.</p>
-      </div>
-      <span id="selo" class="selo" aria-live="polite">Carregando…</span>
-    </header>
-
-    <section id="produtos" class="produtos" aria-label="Produtos">
-      <div class="card esqueleto" aria-hidden="true"></div>
-      <div class="card esqueleto" aria-hidden="true"></div>
-      <div class="card esqueleto" aria-hidden="true"></div>
-    </section>
+    <div class="vitrine-topo">
+      <h1>Mais vendidos</h1>
+      <p>Desafio: compre pelo menor preço possível.</p>
+    </div>
     <p id="mensagem" class="mensagem" hidden></p>
-
-    <footer class="rodape">
-      <a href="/painel.html">Ver painel de pedidos ao vivo</a>
-    </footer>
+    <section id="produtos" class="produtos" aria-label="Produtos">
+      <div class="esqueleto" aria-hidden="true"></div>
+      <div class="esqueleto" aria-hidden="true"></div>
+      <div class="esqueleto" aria-hidden="true"></div>
+    </section>
   </main>
 
-  <!-- Cada card é um <form> com o preço num input hidden. É ESTE valor que o JS envia. -->
+  <footer class="rodape">
+    <div class="wrap">
+      <span>Loja Byte · loja fictícia para fins acadêmicos</span>
+      <a href="/painel.html">Pedidos ao vivo</a>
+    </div>
+  </footer>
+
+  <!-- Cada produto é um <form> com o preço num input hidden. É ESTE valor que o JS envia ao servidor. -->
   <template id="tpl-produto">
-    <article class="card">
-      <div class="emoji" aria-hidden="true"></div>
-      <h2 class="nome"></h2>
-      <div class="preco"></div>
-      <form class="form-compra" action="/api/comprar" method="post" novalidate>
-        <input type="hidden" name="produto_id" value="">
-        <input type="hidden" name="preco" value="">
-        <div class="campo">
-          <label>Seu nome</label>
-          <input type="text" name="nome" maxlength="30" autocomplete="nickname" placeholder="Ex.: Ana">
-        </div>
-        <button type="submit" class="botao">Comprar</button>
-      </form>
-      <div class="resultado" role="status" aria-live="polite" hidden>
-        <strong></strong>
-        <p></p>
+    <article class="produto">
+      <div class="foto" aria-hidden="true"></div>
+      <div class="info">
+        <span class="frete">Frete grátis</span>
+        <h2 class="titulo"></h2>
+        <div class="preco"></div>
+        <div class="parcelas"></div>
+        <form class="form-compra" action="/api/comprar" method="post" novalidate>
+          <input type="hidden" name="produto_id" value="">
+          <input type="hidden" name="preco" value="">
+          <button type="submit" class="botao">Comprar</button>
+        </form>
       </div>
     </article>
   </template>
+
+  <dialog id="confirmacao" class="confirmacao" aria-labelledby="conf-titulo">
+    <div class="icone" id="conf-icone" aria-hidden="true"></div>
+    <h2 id="conf-titulo"></h2>
+    <div class="valor" id="conf-valor"></div>
+    <p class="detalhe" id="conf-detalhe"></p>
+    <form method="dialog"><button class="botao secundario">Continuar comprando</button></form>
+  </dialog>
 
   <script src="/app.js"></script>
   <script>
@@ -61,13 +77,13 @@
     const lista = document.getElementById('produtos');
     const mensagem = document.getElementById('mensagem');
     const tpl = document.getElementById('tpl-produto');
+    const campoNome = document.getElementById('nome');
+    const modal = document.getElementById('confirmacao');
 
-    function lerNomeSalvo() {
-      try { return localStorage.getItem('nome') || ''; } catch (_) { return ''; }
-    }
-    function salvarNome(nome) {
-      try { localStorage.setItem('nome', nome); } catch (_) {}
-    }
+    try { campoNome.value = localStorage.getItem('nome') || ''; } catch (_) {}
+    campoNome.addEventListener('change', () => {
+      try { localStorage.setItem('nome', campoNome.value); } catch (_) {}
+    });
 
     async function carregarStatus() {
       try {
@@ -76,30 +92,28 @@
       } catch (_) {}
     }
 
-    function mostrarResultado(card, tipo, titulo, detalhe) {
-      const box = card.querySelector('.resultado');
-      box.className = 'resultado ' + tipo;
-      box.querySelector('strong').textContent = titulo;
-      box.querySelector('p').textContent = detalhe || '';
-      box.hidden = false;
-      // reinicia a animação de entrada a cada compra
-      box.style.animation = 'none'; void box.offsetWidth; box.style.animation = '';
+    function confirmar(tipo, icone, titulo, valor, detalhe) {
+      modal.className = 'confirmacao ' + tipo;
+      document.getElementById('conf-icone').textContent = icone;
+      document.getElementById('conf-titulo').textContent = titulo;
+      document.getElementById('conf-valor').textContent = valor;
+      document.getElementById('conf-detalhe').textContent = detalhe;
+      if (modal.open) modal.close();
+      modal.showModal();
     }
 
     async function comprar(evento) {
       evento.preventDefault();
       const form = evento.currentTarget;
-      const card = form.closest('.card');
       const botao = form.querySelector('button');
-      // Lê os inputs NO MOMENTO do envio: editar o value nas DevTools muda o preço.
+      // Lê os inputs NO MOMENTO do envio: editar o value nas DevTools muda o preço enviado.
       const dados = {
         produto_id: form.elements.produto_id.value,
         preco: form.elements.preco.value,
-        nome: form.elements.nome.value,
+        nome: campoNome.value,
       };
-      salvarNome(dados.nome);
       botao.disabled = true;
-      botao.textContent = 'Enviando…';
+      botao.textContent = 'Processando...';
       try {
         const r = await api('/api/comprar', {
           method: 'POST',
@@ -107,26 +121,24 @@
           body: JSON.stringify(dados),
         });
         if (!r.ok) {
-          mostrarResultado(card, 'erro', 'Pedido recusado', (r.corpo && r.corpo.erro) || ('Erro ' + r.status));
+          confirmar('erro', '⚠️', 'Pedido recusado', '', (r.corpo && r.corpo.erro) || ('Erro ' + r.status));
           return;
         }
         const p = r.corpo;
         pintarSelo(selo, p.modo);
-        const enviado = Number(p.preco_enviado);
-        const adulterado = p.preco_enviado !== null && !(Math.abs(enviado - p.preco_real) <= 0.001);
+        const adulterado = p.preco_enviado !== null && !(Math.abs(Number(p.preco_enviado) - p.preco_real) <= 0.001);
         if (p.fraude) {
-          mostrarResultado(card, 'fraude',
-            'Pedido aprovado por ' + brl(p.preco_registrado) + ' 😈',
+          confirmar('fraude', '😈', 'Pedido aprovado por', brl(p.preco_registrado),
             'Preço real: ' + brl(p.preco_real) + '. O servidor aceitou o valor que o navegador mandou.');
         } else if (p.modo === 'seguro' && adulterado) {
-          mostrarResultado(card, 'protegido',
-            'Pedido aprovado por ' + brl(p.preco_registrado) + ' 🛡️',
+          confirmar('protegido', '🛡️', 'Pedido aprovado por', brl(p.preco_registrado),
             'Você enviou ' + brl(p.preco_enviado) + ', mas o servidor ignorou e buscou o preço no banco.');
         } else {
-          mostrarResultado(card, '', 'Pedido aprovado por ' + brl(p.preco_registrado), 'Pedido #' + p.id + ' registrado.');
+          confirmar('', '✅', 'Pedido aprovado por', brl(p.preco_registrado),
+            p.produto + ' · pedido nº ' + p.id);
         }
       } catch (_) {
-        mostrarResultado(card, 'erro', 'Sem conexão', 'O servidor pode estar acordando. Tente de novo em alguns segundos.');
+        confirmar('erro', '⚠️', 'Sem conexão', '', 'O servidor pode estar acordando. Tente de novo em alguns segundos.');
       } finally {
         botao.disabled = false;
         botao.textContent = 'Comprar';
@@ -135,20 +147,15 @@
 
     function renderizar(produtos) {
       lista.replaceChildren();
-      const nomeSalvo = lerNomeSalvo();
       for (const prod of produtos) {
         const frag = tpl.content.cloneNode(true);
-        const card = frag.querySelector('.card');
-        card.querySelector('.emoji').textContent = prod.emoji;
-        card.querySelector('.nome').textContent = prod.nome;
-        card.querySelector('.preco').textContent = brl(prod.preco);
-        const form = card.querySelector('form');
+        frag.querySelector('.foto').textContent = prod.emoji;
+        frag.querySelector('.titulo').textContent = prod.nome;
+        frag.querySelector('.preco').textContent = brl(prod.preco);
+        frag.querySelector('.parcelas').textContent = 'ou 10x de ' + brl(prod.preco / 10) + ' sem juros';
+        const form = frag.querySelector('form');
         form.elements.produto_id.value = prod.id;
         form.elements.preco.value = Number(prod.preco).toFixed(2);
-        const campoNome = form.elements.nome;
-        campoNome.id = 'nome-' + prod.id;
-        card.querySelector('label').htmlFor = campoNome.id;
-        campoNome.value = nomeSalvo;
         form.addEventListener('submit', comprar);
         lista.appendChild(frag);
       }
@@ -162,7 +169,7 @@
         renderizar(r.corpo);
       } catch (_) {
         mensagem.hidden = false;
-        mensagem.textContent = 'O servidor está acordando, aguarde alguns segundos…';
+        mensagem.textContent = 'Carregando a loja... o servidor pode levar alguns segundos para acordar.';
         setTimeout(() => carregarProdutos(tentativa + 1), Math.min(2000 * tentativa, 8000));
       }
     }
