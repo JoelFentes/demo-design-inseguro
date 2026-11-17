@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#101416">
+  <title>Loja Demo · Design Inseguro</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="aviso">Ambiente de demonstração acadêmica - loja fictícia</div>
+
+  <main class="wrap">
+    <header class="topo">
+      <div>
+        <span class="rotulo">Demo A / Design inseguro</span>
+        <h1>Loja Demo</h1>
+        <p class="sub">Desafio: compre qualquer produto pelo menor preço possível.</p>
+      </div>
+      <span id="selo" class="selo" aria-live="polite">Carregando…</span>
+    </header>
+
+    <section id="produtos" class="produtos" aria-label="Produtos">
+      <div class="card esqueleto" aria-hidden="true"></div>
+      <div class="card esqueleto" aria-hidden="true"></div>
+      <div class="card esqueleto" aria-hidden="true"></div>
+    </section>
+    <p id="mensagem" class="mensagem" hidden></p>
+
+    <footer class="rodape">
+      <a href="/painel.html">Ver painel de pedidos ao vivo</a>
+    </footer>
+  </main>
+
+  <!-- Cada card é um <form> com o preço num input hidden. É ESTE valor que o JS envia. -->
+  <template id="tpl-produto">
+    <article class="card">
+      <div class="emoji" aria-hidden="true"></div>
+      <h2 class="nome"></h2>
+      <div class="preco"></div>
+      <form class="form-compra" action="/api/comprar" method="post" novalidate>
+        <input type="hidden" name="produto_id" value="">
+        <input type="hidden" name="preco" value="">
+        <div class="campo">
+          <label>Seu nome</label>
+          <input type="text" name="nome" maxlength="30" autocomplete="nickname" placeholder="Ex.: Ana">
+        </div>
+        <button type="submit" class="botao">Comprar</button>
+      </form>
+      <div class="resultado" role="status" aria-live="polite" hidden>
+        <strong></strong>
+        <p></p>
+      </div>
+    </article>
+  </template>
+
+  <script src="/app.js"></script>
+  <script>
+    const selo = document.getElementById('selo');
+    const lista = document.getElementById('produtos');
+    const mensagem = document.getElementById('mensagem');
+    const tpl = document.getElementById('tpl-produto');
+
+    function lerNomeSalvo() {
+      try { return localStorage.getItem('nome') || ''; } catch (_) { return ''; }
+    }
+    function salvarNome(nome) {
+      try { localStorage.setItem('nome', nome); } catch (_) {}
+    }
+
+    async function carregarStatus() {
+      try {
+        const r = await api('/api/status');
+        if (r.ok) pintarSelo(selo, r.corpo.modo);
+      } catch (_) {}
+    }
+
+    function mostrarResultado(card, tipo, titulo, detalhe) {
+      const box = card.querySelector('.resultado');
+      box.className = 'resultado ' + tipo;
+      box.querySelector('strong').textContent = titulo;
+      box.querySelector('p').textContent = detalhe || '';
+      box.hidden = false;
+      // reinicia a animação de entrada a cada compra
+      box.style.animation = 'none'; void box.offsetWidth; box.style.animation = '';
+    }
+
+    async function comprar(evento) {
+      evento.preventDefault();
+      const form = evento.currentTarget;
+      const card = form.closest('.card');
+      const botao = form.querySelector('button');
+      // Lê os inputs NO MOMENTO do envio: editar o value nas DevTools muda o preço.
+      const dados = {
+        produto_id: form.elements.produto_id.value,
+        preco: form.elements.preco.value,
+        nome: form.elements.nome.value,
+      };
+      salvarNome(dados.nome);
+      botao.disabled = true;
+      botao.textContent = 'Enviando…';
+      try {
+        const r = await api('/api/comprar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dados),
+        });
+        if (!r.ok) {
+          mostrarResultado(card, 'erro', 'Pedido recusado', (r.corpo && r.corpo.erro) || ('Erro ' + r.status));
+          return;
+        }
+        const p = r.corpo;
+        pintarSelo(selo, p.modo);
+        const enviado = Number(p.preco_enviado);
+        const adulterado = p.preco_enviado !== null && !(Math.abs(enviado - p.preco_real) <= 0.001);
+        if (p.fraude) {
+          mostrarResultado(card, 'fraude',
+            'Pedido aprovado por ' + brl(p.preco_registrado) + ' 😈',
+            'Preço real: ' + brl(p.preco_real) + '. O servidor aceitou o valor que o navegador mandou.');
+        } else if (p.modo === 'seguro' && adulterado) {
+          mostrarResultado(card, 'protegido',
+            'Pedido aprovado por ' + brl(p.preco_registrado) + ' 🛡️',
+            'Você enviou ' + brl(p.preco_enviado) + ', mas o servidor ignorou e buscou o preço no banco.');
+        } else {
+          mostrarResultado(card, '', 'Pedido aprovado por ' + brl(p.preco_registrado), 'Pedido #' + p.id + ' registrado.');
+        }
+      } catch (_) {
+        mostrarResultado(card, 'erro', 'Sem conexão', 'O servidor pode estar acordando. Tente de novo em alguns segundos.');
+      } finally {
+        botao.disabled = false;
+        botao.textContent = 'Comprar';
+      }
+    }
+
+    function renderizar(produtos) {
+      lista.replaceChildren();
+      const nomeSalvo = lerNomeSalvo();
+      for (const prod of produtos) {
+        const frag = tpl.content.cloneNode(true);
+        const card = frag.querySelector('.card');
+        card.querySelector('.emoji').textContent = prod.emoji;
+        card.querySelector('.nome').textContent = prod.nome;
+        card.querySelector('.preco').textContent = brl(prod.preco);
+        const form = card.querySelector('form');
+        form.elements.produto_id.value = prod.id;
+        form.elements.preco.value = Number(prod.preco).toFixed(2);
+        const campoNome = form.elements.nome;
+        campoNome.id = 'nome-' + prod.id;
+        card.querySelector('label').htmlFor = campoNome.id;
+        campoNome.value = nomeSalvo;
+        form.addEventListener('submit', comprar);
+        lista.appendChild(frag);
+      }
+    }
+
+    async function carregarProdutos(tentativa = 1) {
+      try {
+        const r = await api('/api/produtos');
+        if (!r.ok) throw new Error();
+        mensagem.hidden = true;
+        renderizar(r.corpo);
+      } catch (_) {
+        mensagem.hidden = false;
+        mensagem.textContent = 'O servidor está acordando, aguarde alguns segundos…';
+        setTimeout(() => carregarProdutos(tentativa + 1), Math.min(2000 * tentativa, 8000));
+      }
+    }
+
+    carregarStatus();
+    carregarProdutos();
+    setInterval(carregarStatus, 5000);
+  </script>
+</body>
+</html>

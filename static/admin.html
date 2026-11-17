@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#101416">
+  <title>Admin · Design Inseguro</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="aviso">Ambiente de demonstração acadêmica - loja fictícia</div>
+
+  <main class="wrap">
+    <header class="topo">
+      <div>
+        <span class="rotulo">Demo A / Controle</span>
+        <h1>Admin</h1>
+      </div>
+      <span id="selo" class="selo">Carregando…</span>
+    </header>
+
+    <div class="admin-grid">
+      <form id="form-token" class="card" autocomplete="off">
+        <div class="campo">
+          <label for="token">Token de admin</label>
+          <div class="linha">
+            <input type="password" id="token" name="token" autocomplete="current-password">
+            <button type="submit" class="botao fantasma">Salvar</button>
+          </div>
+        </div>
+      </form>
+
+      <section class="card">
+        <button id="alternar" type="button" class="botao grande">Aplicar a correção (modo seguro)</button>
+        <button id="limpar" type="button" class="botao fantasma">Limpar pedidos</button>
+        <p id="status-acao" class="status-acao" role="status" aria-live="polite"></p>
+      </section>
+    </div>
+
+    <footer class="rodape">
+      <a href="/">Loja</a>
+      <a href="/painel.html">Painel</a>
+    </footer>
+  </main>
+
+  <script src="/app.js"></script>
+  <script>
+    const selo = document.getElementById('selo');
+    const campoToken = document.getElementById('token');
+    const alternar = document.getElementById('alternar');
+    const limpar = document.getElementById('limpar');
+    const statusAcao = document.getElementById('status-acao');
+    let modoAtual = 'vulneravel';
+
+    function token() {
+      try { return sessionStorage.getItem('admin_token') || ''; } catch (_) { return campoToken.value; }
+    }
+
+    function aviso(texto, tipo) {
+      statusAcao.className = 'status-acao ' + (tipo || '');
+      statusAcao.textContent = texto;
+    }
+
+    function pintar(modo) {
+      modoAtual = modo;
+      pintarSelo(selo, modo);
+      if (modo === 'seguro') {
+        alternar.textContent = 'Voltar ao modo vulnerável';
+        alternar.classList.add('ataque');
+      } else {
+        alternar.textContent = 'Aplicar a correção (modo seguro)';
+        alternar.classList.remove('ataque');
+      }
+    }
+
+    function explicarErro(r) {
+      if (r.status === 401) return 'Token inválido.';
+      if (r.status === 503) return 'O servidor está sem ADMIN_TOKEN configurado.';
+      return (r.corpo && r.corpo.erro) || ('Erro ' + r.status);
+    }
+
+    async function admin(caminho, corpo) {
+      return api(caminho, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token() },
+        body: JSON.stringify(corpo || {}),
+      });
+    }
+
+    document.getElementById('form-token').addEventListener('submit', (e) => {
+      e.preventDefault();
+      try { sessionStorage.setItem('admin_token', campoToken.value); } catch (_) {}
+      aviso('Token salvo nesta aba.', 'ok');
+    });
+
+    alternar.addEventListener('click', async () => {
+      const novo = modoAtual === 'seguro' ? 'vulneravel' : 'seguro';
+      alternar.disabled = true;
+      try {
+        const r = await admin('/api/admin/modo', { modo: novo });
+        if (r.ok) {
+          pintar(r.corpo.modo);
+          aviso(r.corpo.modo === 'seguro' ? 'Correção aplicada: o servidor agora busca o preço no banco.' : 'Modo vulnerável reativado.', 'ok');
+        } else {
+          aviso(explicarErro(r), 'erro');
+        }
+      } catch (_) {
+        aviso('Sem conexão com o servidor.', 'erro');
+      } finally {
+        alternar.disabled = false;
+      }
+    });
+
+    limpar.addEventListener('click', async () => {
+      if (!confirm('Apagar todos os pedidos?')) return;
+      try {
+        const r = await admin('/api/admin/limpar');
+        aviso(r.ok ? 'Pedidos apagados.' : explicarErro(r), r.ok ? 'ok' : 'erro');
+      } catch (_) {
+        aviso('Sem conexão com o servidor.', 'erro');
+      }
+    });
+
+    campoToken.value = token();
+    api('/api/status').then(r => { if (r.ok) pintar(r.corpo.modo); }).catch(() => {});
+  </script>
+</body>
+</html>
